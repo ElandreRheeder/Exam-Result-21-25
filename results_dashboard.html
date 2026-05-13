@@ -1049,7 +1049,7 @@ function renderProgression() {
   
   // Transition matrix
   let matHtml = `<div class="prog-grid">
-    <div class="head">IGCSE â†“ / A-Level →</div>`;
+    <div class=”head”>IGCSE &#x2193; / A-Level &#x2192;</div>`;
   AL_GRADES.forEach(g => { matHtml += `<div class="head">${g}</div>`; });
   
   igGradesPresent.forEach(igG => {
@@ -1073,9 +1073,9 @@ function renderProgression() {
   pairs.sort((a,b) => b.igcseNum - a.igcseNum || b.aLevelNum - a.aLevelNum).forEach(p => {
     const diff = p.aLevelNum - (p.igcseNum > 7 ? 7 : p.igcseNum * 0.85);
     let outcome = '', outcomeClass = '';
-    if (p.aLevelGrade === 'A*' || p.aLevelGrade === 'A') { outcome = 'â­ High achiever'; outcomeClass = 'improved'; }
-    else if (p.aLevelGrade === 'U') { outcome = 'âš  Ungraded'; outcomeClass = 'declined'; }
-    else { outcome = 'âœ“ Completed'; outcomeClass = 'maintained'; }
+    if (p.aLevelGrade === 'A*' || p.aLevelGrade === 'A') { outcome = '&#x2B50; High achiever'; outcomeClass = 'improved'; }
+    else if (p.aLevelGrade === 'U') { outcome = '&#x26A0;&#xFE0F; Ungraded'; outcomeClass = 'declined'; }
+    else { outcome = '&#x2714; Completed'; outcomeClass = 'maintained'; }
     
     const igBadge = `<span class="grade-badge grade-${p.igcseGrade}">${p.igcseGrade}</span>`;
     const alBadge = `<span class="grade-badge grade-${p.aLevelGrade.replace('*','star')}">${p.aLevelGrade}</span>`;
@@ -1191,9 +1191,10 @@ function showStudent(uci) {
       const igColor = IG_COLORS[p.igcseGrade] || '#6b7280';
       const alColor = AL_COLORS[p.aLevelGrade] || '#6b7280';
       const diff = p.aLevelNum - Math.min(p.igcseNum, 7) * 0.85;
-      let arrow = '→', arrowClass = 'maintained', note = 'Steady';
-      if (['A*','A'].includes(p.aLevelGrade)) { arrow = 'â†—'; arrowClass = 'improved'; note = 'Strong A-Level'; }
-      else if (['U','E'].includes(p.aLevelGrade) && p.igcseNum >= 7) { arrow = 'â†˜'; arrowClass = 'declined'; note = 'Below expectation'; }
+      let arrow = '&#x2192;', arrowClass = 'maintained', note = 'Steady';
+      if (['A*','A'].includes(p.aLevelGrade)) { arrow = '&#x2197;'; arrowClass = 'improved'; note = 'Strong A-Level'; }
+      else if (['U','E'].includes(p.aLevelGrade)) { arrow = '&#x2198;'; arrowClass = 'declined'; note = 'Below expectation'; }
+      else if (['D'].includes(p.aLevelGrade) && p.igcseNum >= 7) { arrow = '&#x2198;'; arrowClass = 'declined'; note = 'Below expectation'; }
       content += `<div class="progression-row">
         <span class="prog-subject">${p.subject}</span>
         <span class="grade-badge grade-${p.igcseGrade}" style="background:${igColor}">${p.igcseGrade}</span>
@@ -1252,23 +1253,21 @@ function renderPercentile() {
   document.getElementById('pct-chart-title').textContent =
     `Percentile Shift: ${subj} · ${yr === 'ALL' ? 'All Cohorts' : yr + ' A-Level cohort'}`;
 
-  // Collapse into two simple bars: Improved (shift > 0) and Declined (shift < 0)
-  const improved_students = allStudents.filter(s => s.shift > 0);
-  const declined_students = allStudents.filter(s => s.shift < 0);
-  const flat_students = [improved_students, declined_students];
+  const counts = bins.map(b => binData[b]?.count || 0);
+
+  const barColors = bins.map(b =>
+    b.startsWith('<') || b.startsWith('-40') ? '#7f1d1d' :
+    b.startsWith('-30') ? '#b91c1c' :
+    b.startsWith('-20') ? '#d97706' :
+    b.startsWith('-10') ? '#f59e0b' :
+    b.startsWith('0')   ? '#15803d' :
+    b.startsWith('+10') ? '#166534' : '#14532d'
+  );
 
   if (chartPercentile) { chartPercentile.destroy(); chartPercentile = null; }
   chartPercentile = new Chart(document.getElementById('chart-percentile'), {
     type: 'bar',
-    data: {
-      labels: ['Improved', 'Declined'],
-      datasets: [{
-        label: '# Students',
-        data: [improved_students.length, declined_students.length],
-        backgroundColor: ['#15803d', '#b91c1c'],
-        borderRadius: 6
-      }]
-    },
+    data: { labels: bins, datasets: [{ label: '# Students', data: counts, backgroundColor: barColors, borderRadius: 4 }] },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
@@ -1276,7 +1275,8 @@ function renderPercentile() {
         tooltip: {
           callbacks: {
             afterLabel: (ctx) => {
-              const stus = flat_students[ctx.dataIndex] || [];
+              const bin = bins[ctx.dataIndex];
+              const stus = binData[bin]?.students || [];
               return stus.slice(0, 6)
                 .map(s => `  ${s.name}: ${s.igcse} → ${s.alevel} (${s.shift > 0 ? '+' : ''}${s.shift}pp)`)
                 .concat(stus.length > 6 ? [`  ...and ${stus.length - 6} more`] : []);
